@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0d1117">
+  <title>Field Survey Form</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { background: #0d1117; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; direction: rtl; }
+    #app { max-width: 600px; margin: 0 auto; min-height: 100vh; }
+
+    .header {
+      background: linear-gradient(135deg, #1a2332 0%, #0d1117 100%);
+      border-bottom: 1px solid #1e3a5f;
+      padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-logo { display: flex; align-items: center; gap: 10px; }
+    .header-icon { width: 34px; height: 34px; background: #1e3a5f; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 17px; }
+    .header-title { font-weight: 700; font-size: 14px; color: #7dd3fc; letter-spacing: 0.03em; }
+    .header-subtitle { font-size: 10px; color: #475569; }
+    .tab-btn {
+      padding: 7px 13px; border-radius: 8px; border: 1px solid #1e3a5f;
+      background: transparent; color: #475569; cursor: pointer; font-size: 13px;
+      font-family: inherit;
+    }
+    .tab-btn.active { border-color: #3b82f6; background: #1e3a5f; color: #7dd3fc; font-weight: 600; }
+
+    .content { padding: 16px 14px 80px; }
+
+    .card { background: #131c27; border: 1px solid #1e3a5f; border-radius: 12px; margin-bottom: 16px; }
+    .card-pad { padding: 16px; }
+    .section-label { font-size: 11px; color: #3b82f6; letter-spacing: 0.1em; font-weight: 700; margin-bottom: 14px; text-transform: uppercase; }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label { display: block; font-size: 11px; color: #64748b; margin-bottom: 5px; }
+    input, select, textarea {
+      width: 100%; background: #0d1117; border: 1px solid #1e3a5f;
+      border-radius: 8px; padding: 10px 12px; color: #e2e8f0;
+      font-size: 15px; font-family: inherit; -webkit-appearance: none; appearance: none;
+    }
+    textarea { resize: vertical; min-height: 80px; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6; }
+    select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: left 10px center; padding-left: 30px; }
+
+    .progress-bar-bg { height: 7px; background: #1e3a5f; border-radius: 4px; }
+    .progress-bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #3b82f6, #22c55e); transition: width 0.4s ease; }
+    .progress-row { display: flex; justify-content: space-between; margin-bottom: 7px; }
+
+    .checklist-item { background: #131c27; border: 1px solid #1e3a5f; border-radius: 12px; margin-bottom: 8px; overflow: hidden; transition: border-color 0.2s; }
+    .checklist-item.open { border-color: #3b82f6; }
+    .checklist-item.last { border-color: #2d4a6e; }
+    .item-header { display: flex; align-items: center; gap: 12px; padding: 14px; cursor: pointer; user-select: none; min-height: 52px; }
+    .item-num {
+      width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; border: 1.5px solid #64748b; background: #0f172a; color: #64748b;
+    }
+    .item-num.done { border-color: #22c55e; background: #14532d; color: #22c55e; }
+    .item-num.partial { border-color: #f59e0b; background: #451a03; color: #f59e0b; }
+    .item-label { flex: 1; font-size: 14px; color: #cbd5e1; line-height: 1.3; }
+    .item-label.done { color: #86efac; }
+    .item-label.last-label { color: #93c5fd; }
+    .tag { font-size: 10px; color: #3b82f6; background: #1e3a5f; padding: 2px 7px; border-radius: 10px; }
+    .arrow { font-size: 13px; color: #475569; transition: transform 0.2s; margin-right: 2px; }
+    .arrow.open { transform: rotate(90deg); }
+
+    .item-body { padding: 0 14px 16px; border-top: 1px solid #1e3a5f; display: none; }
+    .item-body.open { display: block; }
+    .fields { padding-top: 14px; display: flex; flex-direction: column; gap: 14px; }
+    .field-group {}
+
+    .status-btns { display: flex; gap: 8px; padding-top: 2px; }
+    .status-btn {
+      flex: 1; padding: 9px 0; border-radius: 8px; border: 1px solid;
+      background: transparent; cursor: pointer; font-size: 13px; font-weight: 600;
+      font-family: inherit;
+    }
+    .status-btn[data-s="pending"] { border-color: #64748b; color: #64748b; }
+    .status-btn[data-s="partial"] { border-color: #f59e0b; color: #f59e0b; }
+    .status-btn[data-s="done"] { border-color: #22c55e; color: #22c55e; }
+    .status-btn.active[data-s="pending"] { background: #64748b33; }
+    .status-btn.active[data-s="partial"] { background: #f59e0b33; }
+    .status-btn.active[data-s="done"] { background: #22c55e33; }
+
+    .computed-field {
+      width: 100%; background: #0d1117; border: 1px solid #3b82f6;
+      border-radius: 8px; padding: 10px 12px; color: #7dd3fc;
+      font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: space-between;
+    }
+    .computed-hint { font-size: 10px; color: #3b82f6; }
+
+    .gps-btn {
+      width: 100%; padding: 10px; border-radius: 8px; margin-bottom: 8px;
+      border: 1px solid #3b82f6; background: #1e3a5f;
+      color: #7dd3fc; cursor: pointer; font-size: 13px; font-weight: 600;
+      font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+
+    .equip-list { border-radius: 12px; overflow: hidden; border: 1px solid #1e3a5f; }
+    .equip-item { display: flex; align-items: center; gap: 12px; padding: 13px 14px; cursor: pointer; border-bottom: 1px solid #1e3a5f; background: #131c27; }
+    .equip-item:last-child { border-bottom: none; }
+    .equip-check { width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0; border: 1.5px solid #334155; background: transparent; display: flex; align-items: center; justify-content: center; color: #22c55e; font-size: 14px; }
+    .equip-check.checked { border-color: #22c55e; background: #14532d; }
+    .equip-label { font-size: 14px; color: #94a3b8; }
+    .equip-label.checked { color: #86efac; }
+
+    /* Summary */
+    .summary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .summary-title { font-size: 15px; font-weight: 700; color: #7dd3fc; }
+    .wa-btn {
+      padding: 9px 16px; border-radius: 9px; border: 1px solid #25d366;
+      background: #1a3a2a; color: #25d366; cursor: pointer; font-size: 14px;
+      font-weight: 600; display: flex; align-items: center; gap: 7px; font-family: inherit;
+    }
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .meta-item { font-size: 13px; }
+    .meta-key { color: #64748b; }
+    .meta-val { color: #e2e8f0; }
+    .status-summary { margin-top: 12px; padding: 8px 12px; background: #0d1117; border-radius: 8px; font-size: 12px; }
+
+    .sum-item { background: #131c27; border: 1px solid #1e3a5f; border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+    .sum-item.last { border-color: #2d4a6e; }
+    .sum-item-header { display: flex; align-items: center; gap: 10px; }
+    .sum-item-title { flex: 1; font-size: 13px; font-weight: 600; color: #cbd5e1; }
+    .sum-item-title.done { color: #86efac; }
+    .sum-item-title.last-t { color: #93c5fd; }
+    .status-badge { font-size: 10px; padding: 2px 9px; border-radius: 10px; border: 1px solid; }
+    .sum-fields { padding-right: 28px; display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+    .sum-field { font-size: 12px; }
+    .sum-field-key { color: #475569; }
+    .sum-field-val { color: #94a3b8; }
+    .sum-field-val.computed { color: #7dd3fc; font-weight: 700; }
+
+    .equip-summary { background: #131c27; border: 1px solid #1e3a5f; border-radius: 12px; padding: 14px; }
+    .equip-sum-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const CHECKLIST_ITEMS = [
+  { id: "contact", label: "איש קשר לקוח", fields: [
+    { key: "name", label: "שם", type: "text" },
+    { key: "phone", label: "טלפון", type: "tel" },
+    { key: "role", label: "תפקיד", type: "text" },
+  ]},
+  { id: "coords", label: "דקירת נצ'", fields: [
+    { key: "coords_list", label: "קואורדינטות", type: "textarea_gps" },
+    { key: "notes", label: "הערות", type: "textarea" },
+  ]},
+  { id: "distances", label: "מדידת מרחקי תשתיות", fields: [
+    { key: "ac_dist", label: "מרחק AC (מטר)", type: "number" },
+    { key: "lan_dist", label: "מרחק LAN (מטר)", type: "number" },
+    { key: "lan_internet_dist", label: "מרחק LAN אינטרנט מארון תקשורת (מטר)", type: "number" },
+    { key: "cobra_total", label: 'אורך מטר קוברה סה"כ (מטר)', type: "computed" },
+    { key: "notes", label: "הערות", type: "textarea" },
+  ]},
+  { id: "cellular", label: "בדיקת תקשורת סלולר – מודם טלטוניקה", fields: [
+    { key: "partner", label: "פרטנר", type: "select", options: ["—", "✓ קליטה טובה", "✓ קליטה חלשה", "✗ אין קליטה"] },
+    { key: "cellcom", label: "סלקום", type: "select", options: ["—", "✓ קליטה טובה", "✓ קליטה חלשה", "✗ אין קליטה"] },
+    { key: "hot", label: "הוט מובייל", type: "select", options: ["—", "✓ קליטה טובה", "✓ קליטה חלשה", "✗ אין קליטה"] },
+    { key: "pelephone", label: "פלאפון", type: "select", options: ["—", "✓ קליטה טובה", "✓ קליטה חלשה", "✗ אין קליטה"] },
+    { key: "notes", label: "הערות", type: "textarea" },
+  ]},
+  { id: "construction", label: "תיאום מול גורמי בינוי", fields: [
+    { key: "contact_name", label: "איש קשר בינוי", type: "text" },
+    { key: "contact_phone", label: "טלפון", type: "tel" },
+    { key: "prep_required", label: "הכנה מוקדמת נדרשת", type: "textarea" },
+  ]},
+  { id: "drone", label: "סריקה ומודל רחפן", fields: [
+    { key: "scan_done", label: "סריקה בוצעה?", type: "select", options: ["לא", "כן – ממתין לעיבוד", "כן – הושלם"] },
+    { key: "notes", label: "הערות", type: "textarea" },
+  ]},
+  { id: "mounting", label: "אפיון הקמת אמצעים", fields: [
+    { key: "anchor", label: "עגינה", type: "select", options: ["—", "נדרש", "לא נדרש"] },
+    { key: "hanging", label: "תלייה", type: "select", options: ["—", "נדרש", "לא נדרש"] },
+    { key: "poles", label: "עמודים", type: "select", options: ["—", "נדרש", "לא נדרש"] },
+    { key: "notes", label: "הערות הקמה", type: "textarea" },
+  ]},
+  { id: "ops_room", label: 'אפיון מבנה חמ"ל וחדר תקשורת', fields: [
+    { key: "chair_table1", label: "עמדה 1 – כיסא ושולחן?", type: "select", options: ["כיסא", "שולחן", "שניהם", "אין צורך"] },
+    { key: "position1", label: "עמדה 1 – פירוט", type: "textarea" },
+    { key: "chair_table2", label: "עמדה 2 – כיסא ושולחן?", type: "select", options: ["כיסא", "שולחן", "שניהם", "אין צורך"] },
+    { key: "position2", label: "עמדה 2 – פירוט", type: "textarea" },
+    { key: "notes", label: 'הערות חמ"ל', type: "textarea" },
+  ]},
+  { id: "height_work", label: "עבודה בגובה", fields: [
+    { key: "required", label: "נדרשת?", type: "select", options: ["לא", "כן – עד 3 מ'", "כן – מעל 3 מ'"] },
+    { key: "equipment", label: "ציוד גובה נדרש", type: "text" },
+  ]},
+  { id: "expectations", label: "תיאום ציפיות", fields: [
+    { key: "summary", label: "סיכום תיאום ציפיות", type: "textarea" },
+  ]},
+];
+
+const EQUIPMENT = [
+  "מכשיר RTK","מודם טלטוניקה","מחשב נייד","רחפן",
+  "מטען סוללות רחפן","כרטיס SD לרחפן","רולטקה למדידת מרחקים",
+  "כרטיסי SIM (ספקים שונים)","סוללת EcoFlow",
+];
+
+const today = new Date().toISOString().split('T')[0];
+let state = {
+  view: 'form',
+  meta: { site: '', date: today, surveyor: '', project: '' },
+  data: {},
+  status: {},
+  equipment: {},
+  open: null,
+};
+
+function getCobraSum(d) {
+  return (parseFloat(d.ac_dist)||0) + (parseFloat(d.lan_dist)||0) + (parseFloat(d.lan_internet_dist)||0);
+}
+
+function buildReport() {
+  const L = "━━━━━━━━━━━━━━━━━━━━━━";
+  const l = "──────────────────────";
+  const icons = {done:'✅',partial:'🔶',pending:'⬜'};
+  let msg = `📋 *דוח סיור שטח*\n${L}\n`;
+  msg += `🏗 *אתר:* ${state.meta.site||'—'}\n`;
+  msg += `📅 *תאריך:* ${state.meta.date||'—'}\n`;
+  msg += `👤 *סוקר:* ${state.meta.surveyor||'—'}\n`;
+  msg += `📁 *פרויקט:* ${state.meta.project||'—'}\n${L}\n\n`;
+  CHECKLIST_ITEMS.forEach((item, idx) => {
+    const s = state.status[item.id]||'pending';
+    const d = state.data[item.id]||{};
+    msg += `${icons[s]} *${idx+1}. ${item.label}*\n`;
+    item.fields.forEach(f => {
+      if (f.type==='computed') {
+        const sum = getCobraSum(d);
+        if (sum>0) msg += `   • ${f.label}: *${sum} מטר*\n`;
+      } else if (d[f.key]) {
+        msg += `   • ${f.label}: ${d[f.key]}\n`;
+      }
+    });
+    msg += `${l}\n`;
+  });
+  const taken = EQUIPMENT.filter(e=>state.equipment[e]);
+  if (taken.length) {
+    msg += `\n🎒 *ציוד שנלקח לשטח*\n`;
+    taken.forEach(e => msg += `   ✓ ${e}\n`);
+  }
+  const done = Object.values(state.status).filter(s=>s==='done').length;
+  msg += `\n${L}\n📊 *סטטוס כללי:* ${done}/${CHECKLIST_ITEMS.length} סעיפים הושלמו`;
+  return msg;
+}
+
+function addGps() {
+  if (!navigator.geolocation) { alert('GPS לא זמין במכשיר זה'); return; }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const {latitude, longitude, accuracy} = pos.coords;
+      const line = latitude.toFixed(6) + ', ' + longitude.toFixed(6) + '  (דיוק: ' + Math.round(accuracy) + 'מ\')';
+      if (!state.data['coords']) state.data['coords'] = {};
+      const existing = state.data['coords']['coords_list'] || '';
+      state.data['coords']['coords_list'] = existing ? existing + '\n' + line : line;
+      render();
+    },
+    function(err) {
+      if (err.code === 1) alert('גישה ל-GPS נדחתה. כנס להגדרות הדפדפן ואפשר מיקום לאתר זה.');
+      else if (err.code === 2) alert('לא ניתן לקבל מיקום. בדוק שה-GPS מופעל.');
+      else alert('שגיאת GPS: ' + err.message);
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
+function render() {
+  const done = Object.values(state.status).filter(s=>s==='done').length;
+  const total = CHECKLIST_ITEMS.length;
+  const pct = Math.round((done/total)*100);
+
+  let html = `
+  <div class="header">
+    <div class="header-logo">
+      <div class="header-icon">📡</div>
+      <div>
+        <div class="header-title">FIELD SURVEY FORM</div>
+        <div class="header-subtitle">טופס סיור שטח</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button class="tab-btn ${state.view==='form'?'active':''}" onclick="switchView('form')">טופס</button>
+      <button class="tab-btn ${state.view==='summary'?'active':''}" onclick="switchView('summary')">סיכום</button>
+    </div>
+  </div>
+  <div class="content">`;
+
+  if (state.view === 'form') {
+    // Meta
+    html += `<div class="card card-pad">
+      <div class="section-label">פרטי הסיור</div>
+      <div class="grid2">
+        <div><label>שם האתר / מוצב</label><input type="text" value="${state.meta.site}" onchange="updateMeta('site',this.value)"></div>
+        <div><label>תאריך</label><input type="date" value="${state.meta.date}" onchange="updateMeta('date',this.value)"></div>
+        <div><label>שם הסוקר</label><input type="text" value="${state.meta.surveyor}" onchange="updateMeta('surveyor',this.value)"></div>
+        <div><label>פרויקט</label><input type="text" value="${state.meta.project}" onchange="updateMeta('project',this.value)"></div>
+      </div>
+    </div>`;
+
+    // Progress
+    html += `<div class="card card-pad">
+      <div class="progress-row">
+        <span style="font-size:12px;color:#64748b">התקדמות</span>
+        <span style="font-size:12px;color:#7dd3fc;font-weight:700">${done} / ${total}</span>
+      </div>
+      <div class="progress-bar-bg"><div class="progress-bar" style="width:${pct}%"></div></div>
+    </div>`;
+
+    html += `<div class="section-label" style="margin-bottom:10px">צ'ק ליסט סיור שטח</div>`;
+
+    // Checklist
+    CHECKLIST_ITEMS.forEach((item, idx) => {
+      const s = state.status[item.id]||'pending';
+      const isOpen = state.open === item.id;
+      const isLast = idx === CHECKLIST_ITEMS.length - 1;
+      const d = state.data[item.id]||{};
+
+      let numCls = s==='done'?'done':s==='partial'?'partial':'';
+      let labelCls = s==='done'?'done':isLast?'last-label':'';
+      let numTxt = s==='done'?'✓':s==='partial'?'~':idx+1;
+
+      html += `<div class="checklist-item ${isOpen?'open':''} ${isLast?'last':''}">
+        <div class="item-header" onclick="toggleItem('${item.id}')">
+          <div class="item-num ${numCls}">${numTxt}</div>
+          <span class="item-label ${labelCls}">${item.label}</span>
+          ${isLast?'<span class="tag">סיכום</span>':''}
+          <span class="arrow ${isOpen?'open':''}">◀</span>
+        </div>
+        <div class="item-body ${isOpen?'open':''}">
+          <div class="fields">`;
+
+      item.fields.forEach(f => {
+        html += `<div class="field-group"><label>${f.label}</label>`;
+        if (f.type==='textarea_gps') {
+          html += `<button class="gps-btn" onclick="addGps()">📍 קלוט מיקום GPS נוכחי</button>
+            <textarea onchange="updateData('${item.id}','${f.key}',this.value)">${d[f.key]||''}</textarea>`;
+        } else if (f.type==='computed') {
+          const sum = getCobraSum(d);
+          html += `<div class="computed-field">
+            <span>${sum>0?sum+' מטר':'— הזן מרחקים למעלה'}</span>
+            ${sum>0?'<span class="computed-hint">חישוב אוטומטי</span>':''}
+          </div>`;
+        } else if (f.type==='textarea') {
+          html += `<textarea onchange="updateData('${item.id}','${f.key}',this.value)">${d[f.key]||''}</textarea>`;
+        } else if (f.type==='select') {
+          html += `<select onchange="updateData('${item.id}','${f.key}',this.value)">
+            <option value="">— בחר —</option>
+            ${f.options.map(o=>`<option value="${o}" ${d[f.key]===o?'selected':''}>${o}</option>`).join('')}
+          </select>`;
+        } else {
+          html += `<input type="${f.type}" value="${d[f.key]||''}" onchange="updateData('${item.id}','${f.key}',this.value)">`;
+        }
+        html += `</div>`;
+      });
+
+      html += `<div class="status-btns">
+        <button class="status-btn ${s==='pending'?'active':''}" data-s="pending" onclick="setStatus('${item.id}','pending')">ממתין</button>
+        <button class="status-btn ${s==='partial'?'active':''}" data-s="partial" onclick="setStatus('${item.id}','partial')">חלקי</button>
+        <button class="status-btn ${s==='done'?'active':''}" data-s="done" onclick="setStatus('${item.id}','done')">הושלם</button>
+      </div>
+      </div></div></div>`;
+    });
+
+    // Equipment
+    html += `<div class="section-label" style="margin:20px 0 10px">ציוד נדרש</div>
+    <div class="equip-list">`;
+    EQUIPMENT.forEach(e => {
+      const checked = !!state.equipment[e];
+      html += `<div class="equip-item" onclick="toggleEquip('${e.replace(/'/g,"\\'")}')">
+        <div class="equip-check ${checked?'checked'}">${checked?'✓':''}</div>
+        <span class="equip-label ${checked?'checked':''}">${e}</span>
+      </div>`;
+    });
+    html += `</div>`;
+
+  } else {
+    // Summary view
+    const statusColors = {done:'#22c55e',partial:'#f59e0b',pending:'#64748b'};
+    const statusIcons = {done:'✅',partial:'🔶',pending:'⬜'};
+    const statusLabels = {done:'הושלם',partial:'חלקי',pending:'ממתין'};
+
+    html += `<div class="card card-pad">
+      <div class="summary-header">
+        <div class="summary-title">סיכום סיור שטח</div>
+        <button class="wa-btn" onclick="shareWA()"><span>📤</span> שלח בוואטסאפ</button>
+      </div>
+      <div class="meta-grid">
+        <div class="meta-item"><span class="meta-key">אתר: </span><span class="meta-val">${state.meta.site||'—'}</span></div>
+        <div class="meta-item"><span class="meta-key">תאריך: </span><span class="meta-val">${state.meta.date||'—'}</span></div>
+        <div class="meta-item"><span class="meta-key">סוקר: </span><span class="meta-val">${state.meta.surveyor||'—'}</span></div>
+        <div class="meta-item"><span class="meta-key">פרויקט: </span><span class="meta-val">${state.meta.project||'—'}</span></div>
+      </div>
+      <div class="status-summary">
+        <span style="color:#64748b">סטטוס כללי: </span>
+        <span style="color:#7dd3fc;font-weight:700">${done}/${total} סעיפים הושלמו</span>
+      </div>
+    </div>`;
+
+    CHECKLIST_ITEMS.forEach((item, idx) => {
+      const s = state.status[item.id]||'pending';
+      const d = state.data[item.id]||{};
+      const isLast = idx === CHECKLIST_ITEMS.length - 1;
+      const col = statusColors[s];
+      const hasData = item.fields.some(f => f.type==='computed'?getCobraSum(d)>0:!!d[f.key]);
+
+      html += `<div class="sum-item ${isLast?'last':''}">
+        <div class="sum-item-header">
+          <span style="font-size:15px">${statusIcons[s]}</span>
+          <span class="sum-item-title ${s==='done'?'done':isLast?'last-t':''}">${idx+1}. ${item.label}</span>
+          <span class="status-badge" style="color:${col};border-color:${col};background:${col}22">${statusLabels[s]}</span>
+        </div>`;
+
+      if (hasData) {
+        html += `<div class="sum-fields">`;
+        item.fields.forEach(f => {
+          if (f.type==='computed') {
+            const sum = getCobraSum(d);
+            if (sum>0) html += `<div class="sum-field"><span class="sum-field-key">${f.label}: </span><span class="sum-field-val computed">${sum} מטר</span></div>`;
+          } else if (d[f.key]) {
+            html += `<div class="sum-field"><span class="sum-field-key">${f.label}: </span><span class="sum-field-val">${d[f.key]}</span></div>`;
+          }
+        });
+        html += `</div>`;
+      }
+      html += `</div>`;
+    });
+
+    html += `<div class="equip-summary">
+      <div class="section-label">ציוד שנלקח</div>`;
+    EQUIPMENT.forEach(e => {
+      const checked = !!state.equipment[e];
+      html += `<div class="equip-sum-item">
+        <span style="color:${checked?'#22c55e':'#334155'}">${checked?'✓':'○'}</span>
+        <span style="color:${checked?'#86efac':'#475569'}">${e}</span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `</div>`;
+  document.getElementById('app').innerHTML = html;
+}
+
+function switchView(v) { state.view = v; render(); }
+function updateMeta(k,v) { state.meta[k]=v; }
+function updateData(id,key,val) {
+  if (!state.data[id]) state.data[id]={};
+  state.data[id][key]=val;
+  // re-render only computed fields
+  if (id==='distances') render();
+}
+function toggleItem(id) { state.open = state.open===id?null:id; render(); }
+function setStatus(id,s) { state.status[id]=s; render(); }
+function toggleEquip(e) { state.equipment[e]=!state.equipment[e]; render(); }
+function shareWA() {
+  const text = buildReport();
+  window.location.href = 'whatsapp://send?text='+encodeURIComponent(text);
+}
+
+render();
+</script>
+</body>
+</html>
