@@ -163,16 +163,19 @@ const CHECKLIST_ITEMS = [
     {key:"notes", label:"הערות", type:"textarea"},
   ]},
   { id:"distances", label:"מדידת מרחקים", fields:[
-    {key:"ac_lan_dist", label:"מרחק AC+LAN (מטר)", type:"number"},
-    {key:"lan_internet_dist", label:"מרחק LAN אינטרנט מארון תקשורת (מטר)", type:"number"},
-    {key:"ac_panel_dist", label:"מרחק AC ארון חשמל לנק' חשמל (מטר)", type:"number"},
+    {key:"ac_lan_dist", label:"מרחק DOC LAN + AC מארון תקשורת (מטר)", type:"number"},
+    {key:"lan_internet_dist", label:"מרחק LAN TELTONIKA מארון תקשורת (מטר)", type:"number"},
+    {key:"ac_panel_dist", label:"מרחק AC ארון תקשורת לנק' חשמל (מטר)", type:"number"},
     {key:"cobra_total", label:'אורך מטר קוברה סה"כ', type:"computed"},
     {key:"notes", label:"הערות", type:"textarea"},
   ]},
   { id:"cellular", label:"בדיקת תקשורת סלולר", fields:[
-    {key:"sim1_carrier", label:"ספק", type:"select", options:["סלקום","פלאפון","פרטנר"]},
-    {key:"sim2_carrier", label:"ספק", type:"select", options:["סלקום","פלאפון","פרטנר"]},
-    {key:"sim3_carrier", label:"ספק", type:"select", options:["סלקום","פלאפון","פרטנר"]},
+    {key:"sim1_carrier", label:"ספק 1", type:"select", options:["סלקום","פלאפון","פרטנר"]},
+    {key:"sim1_down", label:"ספק 1 – Download (Mbps)", type:"number"},
+    {key:"sim1_up", label:"ספק 1 – Upload (Mbps)", type:"number"},
+    {key:"sim2_carrier", label:"ספק 2", type:"select", options:["סלקום","פלאפון","פרטנר"]},
+    {key:"sim2_down", label:"ספק 2 – Download (Mbps)", type:"number"},
+    {key:"sim2_up", label:"ספק 2 – Upload (Mbps)", type:"number"},
     {key:"notes", label:"הערות", type:"textarea"},
   ]},
   { id:"construction", label:"הקמה", fields:[
@@ -210,11 +213,16 @@ const today = new Date().toISOString().split('T')[0];
 
 let state = {
   view: 'form',
-  meta: {site:'', date:today, surveyor:'', project:''},
+  meta: {site:'', date:today, surveyor:'', project:'', description:''},
   data: {},
   status: {},
   equipment: {},
   open: null,
+  photos: [],
+  timeline: [],
+  calendarDate: null,
+  selectedCalDay: null,
+  calendarNotes: {},
 };
 
 /* ── Storage helpers ── */
@@ -230,6 +238,8 @@ function saveToArchive() {
     data: JSON.parse(JSON.stringify(state.data)),
     status: JSON.parse(JSON.stringify(state.status)),
     equipment: JSON.parse(JSON.stringify(state.equipment)),
+    timeline: JSON.parse(JSON.stringify(state.timeline||[])),
+    calendarNotes: JSON.parse(JSON.stringify(state.calendarNotes||{})),
   };
   archive.unshift(entry);
   localStorage.setItem('kela_surveys', JSON.stringify(archive));
@@ -244,6 +254,9 @@ function loadSurvey(entry) {
   state.data = JSON.parse(JSON.stringify(entry.data));
   state.status = JSON.parse(JSON.stringify(entry.status));
   state.equipment = JSON.parse(JSON.stringify(entry.equipment||{}));
+  state.timeline = JSON.parse(JSON.stringify(entry.timeline||[]));
+  state.calendarNotes = JSON.parse(JSON.stringify(entry.calendarNotes||{}));
+  state.selectedCalDay = null; state.calendarDate = null;
   state.open = null;
   state.view = 'form';
 }
@@ -295,6 +308,13 @@ function generatePDF(){
   html+='<div><span>איש קשר: </span><b>'+(state.meta.surveyor||'—')+'</b></div>';
   html+='<div><span>פרויקט: </span><b>'+(state.meta.project||'—')+'</b></div>';
   html+='</div>';
+  /* Description in PDF */
+  if(state.meta.description){
+    html+='<div style="border:1px solid #ddd;border-radius:4px;padding:7px 10px;margin-bottom:8px;background:#f8faff">';
+    html+='<div style="font-size:10px;font-weight:bold;color:#1a3a6e;margin-bottom:3px">תיאור כללי</div>';
+    html+='<p style="font-size:11px;color:#333;margin:0">'+state.meta.description+'</p></div>';
+  }
+
   CHECKLIST_ITEMS.forEach(function(item,idx){
     var s=state.status[item.id]||'pending';
     var d=state.data[item.id]||{};
@@ -317,12 +337,40 @@ function generatePDF(){
     }
     html+='</div>';
   });
+  /* Photos in PDF */
+  if(state.photos && state.photos.length>0){
+    html+='<div style="border:1px solid #ddd;border-radius:4px;padding:7px 10px;margin-bottom:6px">';
+    html+='<div style="font-size:10px;font-weight:bold;color:#1a3a6e;margin-bottom:6px">תמונות</div>';
+    html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
+    state.photos.forEach(function(p){
+      html+='<img src="'+p+'" style="width:100%;height:120px;object-fit:cover;border-radius:4px;image-rendering:crisp-edges">';
+    });
+    html+='</div></div>';
+  }
+
+  /* Timeline in PDF */
+  if(state.timeline && state.timeline.length>0){
+    html+='<div style="border:1px solid #ddd;border-radius:4px;padding:7px 10px;margin-top:6px;margin-bottom:6px">';
+    html+='<div style="font-size:10px;font-weight:bold;color:#1a3a6e;margin-bottom:6px">ציר זמן פרויקט</div>';
+    state.timeline.forEach(function(item){
+      var isDone=item.status==='done';
+      var col=isDone?'#166534':'#92400e';
+      var bg=isDone?'#dcfce7':'#fef3c7';
+      var pct=isDone?100:50;
+      html+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">';
+      html+='<span style="font-size:10px;color:#555;width:90px;flex-shrink:0;text-align:right">'+item.name+'</span>';
+      html+='<div style="width:80px;flex-shrink:0;height:10px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+bg+';border-radius:3px"></div></div><span style="font-size:9px;color:'+col+';margin-right:4px">'+(isDone?'הושלם':'בתהליך')+'</span>';
+      html+='</div>';
+    });
+    html+='</div>';
+  }
+
   html+='<div class="pdf-footer">KELA Systems | Field Survey | '+new Date().toLocaleDateString('he-IL')+'</div>';
   html+='</div>';
   el.innerHTML=html;
   el.classList.add('visible');
   var jsPDF=window.jspdf.jsPDF;
-  html2canvas(el.querySelector('.pdf-page'),{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(function(canvas){
+  html2canvas(el.querySelector('.pdf-page'),{scale:3,useCORS:true,backgroundColor:'#ffffff',imageTimeout:0,allowTaint:true}).then(function(canvas){
     el.classList.remove('visible');
     var imgData=canvas.toDataURL('image/jpeg',0.92);
     var pdf=new jsPDF({orientation:'p',unit:'mm',format:'a4'});
@@ -358,6 +406,47 @@ function buildWAReport(){
 }
 function shareWA(){ window.open('https://wa.me/?text='+encodeURIComponent(buildWAReport()),'_blank'); }
 
+/* ── Timeline ── */
+function addTimelineItem(){
+  var name=document.getElementById('tl-name').value.trim();
+  if(!name){alert('נא להזין שם שלב');return;}
+  state.timeline.push({name:name,status:'inprogress'});
+  render();
+}
+function removeTimelineItem(idx){state.timeline.splice(idx,1);render();}
+function toggleTimelineStatus(idx){
+  state.timeline[idx].status=state.timeline[idx].status==='done'?'inprogress':'done';
+  render();
+}
+
+/* ── Calendar ── */
+function calNav(dir){
+  var d=state.calendarDate?new Date(state.calendarDate):new Date();
+  d.setMonth(d.getMonth()+dir);
+  state.calendarDate=d.toISOString().split('T')[0];
+  render();
+}
+function selectCalDay(dateKey){
+  state.selectedCalDay=state.selectedCalDay===dateKey?null:dateKey;
+  render();
+}
+function updateCalNote(dateKey,val){
+  if(!state.calendarNotes) state.calendarNotes={};
+  state.calendarNotes[dateKey]=val;
+}
+
+/* ── Photos ── */
+function addPhotos(input){
+  var files=Array.from(input.files);
+  files.forEach(function(file){
+    var reader=new FileReader();
+    reader.onload=function(e){ state.photos.push(e.target.result); render(); };
+    reader.readAsDataURL(file);
+  });
+  input.value='';
+}
+function removePhoto(idx){ state.photos.splice(idx,1); render(); }
+
 /* ── Render ── */
 function render(){
   var done=completedCount(), total=CHECKLIST_ITEMS.length, pct=Math.round(done/total*100);
@@ -378,6 +467,7 @@ function render(){
       html+='<div><label>'+f.label+'</label><input type="'+(f.type||'text')+'" value="'+state.meta[f.key]+'" onchange="updateMeta(\''+f.key+'\',this.value)"></div>';
     });
     html+='</div></div>';
+    html+='<div class="card card-pad"><div class="section-label" style="margin-bottom:10px">תיאור כללי</div><textarea onchange="updateMeta(\'description\',this.value)" placeholder="תיאור כללי של האתר והסיור..." rows="3" style="width:100%;background:#0d1117;border:1px solid #1e3a5f;border-radius:8px;padding:10px 12px;color:#e2e8f0;font-size:15px;font-family:inherit;resize:vertical;box-sizing:border-box">'+(state.meta.description||'')+'</textarea></div>';
 
     /* Items */
     html+='<div class="section-label" style="margin-bottom:10px">צ\'ק ליסט</div>';
@@ -389,6 +479,18 @@ function render(){
       html+='<span class="arrow'+(isOpen?' open':'')+'">◀</span></div>';
       if(isOpen){
         html+='<div class="item-body open"><div class="fields">';
+        if(item.id==='cellular'){
+          html+='<div><a href="https://www.speedtest.net" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;border-radius:8px;border:1px solid #3b82f6;background:#1e3a5f;color:#7dd3fc;text-decoration:none;font-size:13px;font-weight:600;margin-bottom:4px">🌐 פתח Speedtest לבדיקת גלישה</a></div>';
+          var cd=state.data['cellular']||{};
+          var carriers=[
+            {name:cd.sim1_carrier,down:parseFloat(cd.sim1_down)||0,up:parseFloat(cd.sim1_up)||0},
+            {name:cd.sim2_carrier,down:parseFloat(cd.sim2_down)||0,up:parseFloat(cd.sim2_up)||0},
+          ].filter(function(c){return c.name && c.down>0;});
+          if(carriers.length>0){
+            var best=carriers.reduce(function(a,b){return (a.down+a.up)>(b.down+b.up)?a:b;});
+            html+='<div style="background:#14532d;border:1px solid #22c55e;border-radius:8px;padding:8px 12px;font-size:12px;color:#86efac">🏆 ספק מהיר ביותר: <b>'+best.name+'</b> (↓'+best.down+' / ↑'+best.up+' Mbps)</div>';
+          }
+        }
         item.fields.forEach(function(f){
           html+='<div><label>'+f.label+'</label>';
           if(f.type==='textarea_gps'){
@@ -417,6 +519,47 @@ function render(){
       html+='</div>';
     });
     /* Equipment */
+    /* Timeline */
+    html+='<div class="section-label" style="margin:18px 0 10px">ציר זמן פרויקט</div>';
+    html+='<div class="card card-pad" style="padding:14px">';
+    if(state.timeline.length>0){
+      html+='<div style="margin-bottom:12px">';
+      state.timeline.forEach(function(item,i){
+        var isDone=item.status==='done';
+        var col=isDone?'#22c55e':'#f59e0b';
+        var bg=isDone?'#14532d':'#451a03';
+        var pct=isDone?100:50;
+        html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+        html+='<span style="font-size:12px;color:#94a3b8;width:90px;flex-shrink:0;text-align:right;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</span>';
+        html+='<div style="flex:1;height:22px;background:#1e3a5f;border-radius:4px;overflow:hidden">';
+        html+='<div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:4px;display:flex;align-items:center;justify-content:center">';
+        html+='<span style="font-size:10px;color:white;font-weight:600">'+(isDone?'הושלם':'בתהליך')+'</span></div></div>';
+        html+='<button onclick="toggleTimelineStatus('+i+')" style="background:'+bg+';border:1px solid '+col+';border-radius:6px;color:'+col+';cursor:pointer;font-size:10px;padding:3px 7px;flex-shrink:0;font-family:inherit">'+(isDone?'↺':'✓')+'</button>';
+        html+='<button onclick="removeTimelineItem('+i+')" style="background:transparent;border:none;color:#475569;cursor:pointer;font-size:13px;flex-shrink:0">✕</button>';
+        html+='</div>';
+      });
+      html+='</div>';
+    }
+    html+='<div style="display:flex;gap:6px;align-items:center">';
+    html+='<input type="text" id="tl-name" placeholder="הוסף שלב חדש..." style="flex:1;background:#0d1117;border:1px solid #1e3a5f;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px;font-family:inherit">';
+    html+='<button onclick="addTimelineItem()" style="padding:8px 14px;border-radius:6px;border:1px solid #3b82f6;background:#1e3a5f;color:#7dd3fc;cursor:pointer;font-size:16px;flex-shrink:0">+</button>';
+    html+='</div>';
+    html+='</div>';
+
+    /* Photos */
+    html+='<div class="section-label" style="margin:18px 0 10px">תמונות</div>';
+    html+='<div class="card card-pad" style="padding:12px">';
+    html+='<input type="file" accept="image/*" multiple capture="environment" onchange="addPhotos(this)" style="display:none" id="photo-input">';
+    html+='<button onclick="document.getElementById(\'photo-input\').click()" style="width:100%;padding:10px;border-radius:8px;border:1px solid #3b82f6;background:#1e3a5f;color:#7dd3fc;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">📷 צלם / בחר תמונות</button>';
+    if(state.photos && state.photos.length>0){
+      html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px">';
+      state.photos.forEach(function(p,i){
+        html+='<div style="position:relative"><img src="'+p+'" style="width:100%;height:80px;object-fit:cover;border-radius:6px;border:1px solid #1e3a5f">';
+        html+='<button onclick="removePhoto('+i+')" style="position:absolute;top:2px;left:2px;background:#ef444488;border:none;border-radius:4px;color:white;font-size:11px;cursor:pointer;padding:1px 5px">✕</button></div>';
+      });
+      html+='</div>';
+    }
+    html+='</div>';
     html+='<div class="section-label" style="margin:18px 0 10px">ציוד</div><div class="equip-list">';
     EQUIPMENT.forEach(function(e,i){
       var chk=!!state.equipment[e];
@@ -436,7 +579,24 @@ function render(){
     [['אתר',state.meta.site],['תאריך',state.meta.date],['איש קשר',state.meta.surveyor],['פרויקט',state.meta.project]].forEach(function(m){
       html+='<div class="meta-item"><span class="meta-k">'+m[0]+': </span><span class="meta-v">'+(m[1]||'—')+'</span></div>';
     });
-    html+='</div><div class="status-stat"><span style="color:#64748b">סטטוס: </span><span style="color:#7dd3fc;font-weight:700">'+done+'/'+total+' הושלמו</span></div></div>';
+    html+='</div><div class="status-stat"><span style="color:#64748b">סטטוס: </span><span style="color:#7dd3fc;font-weight:700">'+done+'/'+total+' הושלמו</span></div>';
+    html+='</div>';
+    /* Description in summary */
+    if(state.meta.description){
+      html+='<div class="card card-pad" style="margin-bottom:12px"><div style="font-size:11px;color:#3b82f6;font-weight:700;letter-spacing:.1em;margin-bottom:6px">תיאור כללי</div>';
+      html+='<p style="font-size:13px;color:#cbd5e1;line-height:1.6">'+state.meta.description+'</p></div>';
+    }
+
+    /* Photos in summary */
+    if(state.photos && state.photos.length>0){
+      html+='<div class="card card-pad" style="margin-bottom:12px"><div style="font-size:11px;color:#3b82f6;font-weight:700;letter-spacing:.1em;margin-bottom:8px">תמונות</div>';
+      html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
+      state.photos.forEach(function(p){
+        html+='<img src="'+p+'" style="width:100%;height:80px;object-fit:cover;border-radius:6px;border:1px solid #1e3a5f">';
+      });
+      html+='</div></div>';
+    }
+
     CHECKLIST_ITEMS.forEach(function(item,idx){
       var s=state.status[item.id]||'pending', d=state.data[item.id]||{};
       var col=STATUS_COLORS[s];
@@ -457,6 +617,21 @@ function render(){
       }
       html+='</div>';
     });
+
+    /* Timeline in summary */
+    if(state.timeline && state.timeline.length>0){
+      html+='<div class="card card-pad" style="margin-bottom:12px"><div style="font-size:11px;color:#3b82f6;font-weight:700;letter-spacing:.1em;margin-bottom:10px">ציר זמן פרויקט</div>';
+      state.timeline.forEach(function(item){
+        var isDone=item.status==='done';
+        var col=isDone?'#22c55e':'#f59e0b';
+        var pct=isDone?100:50;
+        html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+        html+='<span style="font-size:12px;color:#94a3b8;width:100px;flex-shrink:0;text-align:right;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+item.name+'</span>';
+        html+='<div style="width:80px;flex-shrink:0;height:10px;background:#1e3a5f;border-radius:3px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:3px"></div></div>';
+        html+='</div>';
+      });
+      html+='</div>';
+    }
 
   } else {
     /* Archive */
@@ -485,6 +660,14 @@ function render(){
 
   html+='</div>';
   document.getElementById('app').innerHTML=html;
+  // Calendar note input
+  var calNote=document.querySelector('.cal-note-input');
+  if(calNote) calNote.addEventListener('change',function(){ updateCalNote(state.selectedCalDay,this.value); });
+  // Calendar day click delegation
+  var calDays=document.querySelectorAll('.cal-day');
+  calDays.forEach(function(el){
+    el.addEventListener('click',function(){ selectCalDay(this.getAttribute('data-k')); });
+  });
 }
 
 function switchView(v){ state.view=v; render(); }
