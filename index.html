@@ -352,17 +352,23 @@ function generatePDF(){
   if(state.timeline && state.timeline.length>0){
     html+='<div style="border:1px solid #ddd;border-radius:4px;padding:7px 10px;margin-top:6px;margin-bottom:6px">';
     html+='<div style="font-size:10px;font-weight:bold;color:#1a3a6e;margin-bottom:6px">ציר זמן פרויקט</div>';
+    html+='<table style="width:100%;border-collapse:collapse;font-size:10px">';
+    html+='<thead><tr style="background:#f0f4ff">';
+    html+='<th style="text-align:right;padding:4px 8px;border:1px solid #ddd;color:#1a3a6e">משימה</th>';
+    html+='<th style="text-align:right;padding:4px 8px;border:1px solid #ddd;color:#1a3a6e">אחריות</th>';
+    html+='<th style="text-align:center;padding:4px 8px;border:1px solid #ddd;color:#1a3a6e;width:70px">סטטוס</th>';
+    html+='</tr></thead><tbody>';
     state.timeline.forEach(function(item){
       var isDone=item.status==='done';
       var col=isDone?'#166534':'#92400e';
       var bg=isDone?'#dcfce7':'#fef3c7';
-      var pct=isDone?100:50;
-      html+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">';
-      html+='<span style="font-size:10px;color:#555;width:90px;flex-shrink:0;text-align:right">'+item.name+'</span>';
-      html+='<div style="width:80px;flex-shrink:0;height:10px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+bg+';border-radius:3px"></div></div><span style="font-size:9px;color:'+col+';margin-right:4px">'+(isDone?'הושלם':'בתהליך')+'</span>';
-      html+='</div>';
+      html+='<tr>';
+      html+='<td style="padding:4px 8px;border:1px solid #eee;color:#333">'+item.name+'</td>';
+      html+='<td style="padding:4px 8px;border:1px solid #eee;color:#555">'+(item.owner||'—')+'</td>';
+      html+='<td style="padding:4px 8px;border:1px solid #eee;text-align:center;background:'+bg+';color:'+col+';font-weight:bold">'+(isDone?'✓ הושלם':'○ טרם')+'</td>';
+      html+='</tr>';
     });
-    html+='</div>';
+    html+='</tbody></table></div>';
   }
 
   html+='<div class="pdf-footer">KELA Systems | Field Survey | '+new Date().toLocaleDateString('he-IL')+'</div>';
@@ -409,11 +415,15 @@ function shareWA(){ window.open('https://wa.me/?text='+encodeURIComponent(buildW
 /* ── Timeline ── */
 function addTimelineItem(){
   var name=document.getElementById('tl-name').value.trim();
-  if(!name){alert('נא להזין שם שלב');return;}
-  state.timeline.push({name:name,status:'inprogress'});
+  var owner=document.getElementById('tl-owner')?document.getElementById('tl-owner').value.trim():'';
+  if(!name){alert('נא להזין שם משימה');return;}
+  state.timeline.push({name:name,owner:owner,status:'inprogress'});
   render();
 }
 function removeTimelineItem(idx){state.timeline.splice(idx,1);render();}
+function updateTimelineOwner(idx,val){
+  state.timeline[idx].owner=val;
+}
 function toggleTimelineStatus(idx){
   state.timeline[idx].status=state.timeline[idx].status==='done'?'inprogress':'done';
   render();
@@ -523,26 +533,31 @@ function render(){
     html+='<div class="section-label" style="margin:18px 0 10px">ציר זמן פרויקט</div>';
     html+='<div class="card card-pad" style="padding:14px">';
     if(state.timeline.length>0){
-      html+='<div style="margin-bottom:12px">';
+      html+='<div style="overflow-x:auto;margin-bottom:12px">';
+      html+='<table style="width:100%;border-collapse:collapse;font-size:13px">';
+      html+='<thead><tr>';
+      html+='<th style="text-align:right;padding:7px 10px;border-bottom:1px solid #1e3a5f;color:#3b82f6;font-size:11px;font-weight:700">משימה</th>';
+      html+='<th style="text-align:right;padding:7px 10px;border-bottom:1px solid #1e3a5f;color:#3b82f6;font-size:11px;font-weight:700">אחריות</th>';
+      html+='<th style="text-align:center;padding:7px 10px;border-bottom:1px solid #1e3a5f;color:#3b82f6;font-size:11px;font-weight:700;width:80px">סטטוס</th>';
+      html+='<th style="width:30px;border-bottom:1px solid #1e3a5f"></th>';
+      html+='</tr></thead><tbody>';
       state.timeline.forEach(function(item,i){
         var isDone=item.status==='done';
         var col=isDone?'#22c55e':'#f59e0b';
         var bg=isDone?'#14532d':'#451a03';
-        var pct=isDone?100:50;
-        html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
-        html+='<span style="font-size:12px;color:#94a3b8;width:90px;flex-shrink:0;text-align:right;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</span>';
-        html+='<div style="flex:1;height:22px;background:#1e3a5f;border-radius:4px;overflow:hidden">';
-        html+='<div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:4px;display:flex;align-items:center;justify-content:center">';
-        html+='<span style="font-size:10px;color:white;font-weight:600">'+(isDone?'הושלם':'בתהליך')+'</span></div></div>';
-        html+='<button onclick="toggleTimelineStatus('+i+')" style="background:'+bg+';border:1px solid '+col+';border-radius:6px;color:'+col+';cursor:pointer;font-size:10px;padding:3px 7px;flex-shrink:0;font-family:inherit">'+(isDone?'↺':'✓')+'</button>';
-        html+='<button onclick="removeTimelineItem('+i+')" style="background:transparent;border:none;color:#475569;cursor:pointer;font-size:13px;flex-shrink:0">✕</button>';
-        html+='</div>';
+        html+='<tr style="border-bottom:1px solid #0f172a">';
+        html+='<td style="padding:8px 10px;color:#cbd5e1">'+item.name+'</td>';
+        html+='<td style="padding:8px 10px"><input type="text" value="'+(item.owner||'')+'" onchange="updateTimelineOwner('+i+',this.value)" placeholder="—" style="background:transparent;border:none;border-bottom:1px solid #1e3a5f;color:#94a3b8;font-size:12px;font-family:inherit;width:100%;padding:2px 0;outline:none"></td>';
+        html+='<td style="padding:8px 10px;text-align:center"><button onclick="toggleTimelineStatus('+i+')" style="background:'+bg+';border:1px solid '+col+';border-radius:6px;color:'+col+';cursor:pointer;font-size:11px;padding:3px 8px;font-family:inherit;font-weight:600">'+(isDone?'✓ הושלם':'○ טרם')+'</button></td>';
+        html+='<td style="padding:8px 4px;text-align:center"><button onclick="removeTimelineItem('+i+')" style="background:transparent;border:none;color:#334155;cursor:pointer;font-size:14px">✕</button></td>';
+        html+='</tr>';
       });
-      html+='</div>';
+      html+='</tbody></table></div>';
     }
-    html+='<div style="display:flex;gap:6px;align-items:center">';
-    html+='<input type="text" id="tl-name" placeholder="הוסף שלב חדש..." style="flex:1;background:#0d1117;border:1px solid #1e3a5f;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px;font-family:inherit">';
-    html+='<button onclick="addTimelineItem()" style="padding:8px 14px;border-radius:6px;border:1px solid #3b82f6;background:#1e3a5f;color:#7dd3fc;cursor:pointer;font-size:16px;flex-shrink:0">+</button>';
+    html+='<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:center">';
+    html+='<input type="text" id="tl-name" placeholder="משימה חדשה..." style="background:#0d1117;border:1px solid #1e3a5f;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px;font-family:inherit">';
+    html+='<input type="text" id="tl-owner" placeholder="אחריות..." style="background:#0d1117;border:1px solid #1e3a5f;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px;font-family:inherit">';
+    html+='<button onclick="addTimelineItem()" style="padding:8px 14px;border-radius:6px;border:1px solid #3b82f6;background:#1e3a5f;color:#7dd3fc;cursor:pointer;font-size:16px">+</button>';
     html+='</div>';
     html+='</div>';
 
@@ -621,16 +636,15 @@ function render(){
     /* Timeline in summary */
     if(state.timeline && state.timeline.length>0){
       html+='<div class="card card-pad" style="margin-bottom:12px"><div style="font-size:11px;color:#3b82f6;font-weight:700;letter-spacing:.1em;margin-bottom:10px">ציר זמן פרויקט</div>';
+      html+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+      html+='<thead><tr><th style="text-align:right;padding:5px 8px;border-bottom:1px solid #1e3a5f;color:#475569;font-size:11px">משימה</th><th style="text-align:right;padding:5px 8px;border-bottom:1px solid #1e3a5f;color:#475569;font-size:11px">אחריות</th><th style="text-align:center;padding:5px 8px;border-bottom:1px solid #1e3a5f;color:#475569;font-size:11px;width:80px">סטטוס</th></tr></thead><tbody>';
       state.timeline.forEach(function(item){
         var isDone=item.status==='done';
         var col=isDone?'#22c55e':'#f59e0b';
-        var pct=isDone?100:50;
-        html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
-        html+='<span style="font-size:12px;color:#94a3b8;width:100px;flex-shrink:0;text-align:right;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+item.name+'</span>';
-        html+='<div style="width:80px;flex-shrink:0;height:10px;background:#1e3a5f;border-radius:3px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:3px"></div></div>';
-        html+='</div>';
+        var bg=isDone?'#14532d':'#451a03';
+        html+='<tr style="border-bottom:1px solid #0f172a"><td style="padding:7px 8px;color:#cbd5e1">'+item.name+'</td><td style="padding:7px 8px;color:#64748b">'+(item.owner||'—')+'</td><td style="padding:7px 8px;text-align:center"><span style="background:'+bg+';border:1px solid '+col+';border-radius:5px;color:'+col+';font-size:11px;padding:2px 7px;font-weight:600">'+(isDone?'✓ הושלם':'○ טרם')+'</span></td></tr>';
       });
-      html+='</div>';
+      html+='</tbody></table></div>';
     }
 
   } else {
