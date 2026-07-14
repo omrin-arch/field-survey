@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0d1117">
+  <title>KELA Field Survey</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    body{background:#0d1117;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;direction:rtl}
+    #app{max-width:600px;margin:0 auto;min-height:100vh}
+
+    .header{background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-bottom:1px solid #1e3a5f;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+    .header-logo{display:flex;align-items:center;gap:10px}
+    .logo-img{width:32px;height:32px;object-fit:contain;border-radius:4px}
+    .header-title{font-weight:700;font-size:14px;color:#7dd3fc;letter-spacing:.05em}
+    .header-subtitle{font-size:10px;color:#475569}
+    .tab-bar{display:flex;gap:4px}
+    .tab-btn{padding:6px 11px;border-radius:8px;border:1px solid #1e3a5f;background:transparent;color:#475569;cursor:pointer;font-size:12px;font-family:inherit}
+    .tab-btn.active{border-color:#3b82f6;background:#1e3a5f;color:#7dd3fc;font-weight:600}
+
+    .content{padding:14px 13px 80px}
+    .card{background:#131c27;border:1px solid #1e3a5f;border-radius:12px;margin-bottom:14px}
+    .card-pad{padding:15px}
+    .section-label{font-size:11px;color:#3b82f6;letter-spacing:.1em;font-weight:700;margin-bottom:12px;text-transform:uppercase}
+
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    label{display:block;font-size:11px;color:#64748b;margin-bottom:5px}
+    input,select,textarea{width:100%;background:#0d1117;border:1px solid #1e3a5f;border-radius:8px;padding:10px 12px;color:#e2e8f0;font-size:15px;font-family:inherit;-webkit-appearance:none;appearance:none}
+    textarea{resize:vertical;min-height:75px}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:#3b82f6}
+    select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:30px}
+
+    .progress-row{display:flex;justify-content:space-between;margin-bottom:6px}
+    .progress-bg{height:6px;background:#1e3a5f;border-radius:3px}
+    .progress-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#3b82f6,#22c55e);transition:width .4s}
+
+    .item{background:#131c27;border:1px solid #1e3a5f;border-radius:12px;margin-bottom:8px;overflow:hidden;transition:border-color .2s}
+    .item.open{border-color:#3b82f6}
+    .item-hdr{display:flex;align-items:center;gap:11px;padding:13px 14px;cursor:pointer;user-select:none;min-height:50px}
+    .item-num{width:28px;height:28px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;border:1.5px solid #64748b;background:#0f172a;color:#64748b}
+    .item-num.done{border-color:#22c55e;background:#14532d;color:#22c55e}
+    .item-num.partial{border-color:#f59e0b;background:#451a03;color:#f59e0b}
+    .item-lbl{flex:1;font-size:14px;color:#cbd5e1;line-height:1.3}
+    .item-lbl.done{color:#86efac}
+    .arrow{font-size:12px;color:#475569;transition:transform .2s}
+    .arrow.open{transform:rotate(90deg)}
+    .item-body{padding:0 14px 15px;border-top:1px solid #1e3a5f;display:none}
+    .item-body.open{display:block}
+    .fields{padding-top:13px;display:flex;flex-direction:column;gap:13px}
+    .status-btns{display:flex;gap:7px;padding-top:4px}
+    .sbtn{flex:1;padding:8px 0;border-radius:8px;border:1px solid;background:transparent;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
+    .sbtn[data-s=pending]{border-color:#64748b;color:#64748b}
+    .sbtn[data-s=partial]{border-color:#f59e0b;color:#f59e0b}
+    .sbtn[data-s=done]{border-color:#22c55e;color:#22c55e}
+    .sbtn.active[data-s=pending]{background:#64748b33}
+    .sbtn.active[data-s=partial]{background:#f59e0b33}
+    .sbtn.active[data-s=done]{background:#22c55e33}
+
+    .computed-box{width:100%;background:#0d1117;border:1px solid #3b82f6;border-radius:8px;padding:10px 12px;color:#7dd3fc;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+    .computed-hint{font-size:10px;color:#3b82f6}
+    .gps-btn{width:100%;padding:10px;border-radius:8px;margin-bottom:8px;border:1px solid #3b82f6;background:#1e3a5f;color:#7dd3fc;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px}
+
+    .equip-list{border-radius:12px;overflow:hidden;border:1px solid #1e3a5f}
+    .equip-item{display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;border-bottom:1px solid #1e3a5f;background:#131c27}
+    .equip-item:last-child{border-bottom:none}
+    .equip-chk{width:22px;height:22px;border-radius:5px;flex-shrink:0;border:1.5px solid #334155;background:transparent;display:flex;align-items:center;justify-content:center;color:#22c55e;font-size:13px}
+    .equip-chk.checked{border-color:#22c55e;background:#14532d}
+    .equip-lbl{font-size:14px;color:#94a3b8}
+    .equip-lbl.checked{color:#86efac}
+
+    /* Save survey button */
+    .save-survey-btn{width:100%;padding:13px;border-radius:10px;border:1px solid #22c55e;background:#14532d;color:#86efac;cursor:pointer;font-size:15px;font-weight:700;font-family:inherit;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px}
+
+    /* Summary */
+    .sum-header{margin-bottom:14px}
+    .sum-title{font-size:15px;font-weight:700;color:#7dd3fc;margin-bottom:10px}
+    .action-btn{width:100%;padding:11px;border-radius:9px;border:1px solid #25d366;background:#1a3a2a;color:#25d366;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:8px}
+    .action-btn.pdf{border-color:#f59e0b;background:#1f1500;color:#f59e0b}
+    .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
+    .meta-item{font-size:13px}
+    .meta-k{color:#64748b}
+    .meta-v{color:#e2e8f0}
+    .status-stat{padding:8px 12px;background:#0d1117;border-radius:8px;font-size:12px}
+    .sum-item{background:#131c27;border:1px solid #1e3a5f;border-radius:12px;padding:13px;margin-bottom:9px}
+    .sum-item-hdr{display:flex;align-items:center;gap:9px}
+    .sum-item-title{flex:1;font-size:13px;font-weight:600;color:#cbd5e1}
+    .sum-item-title.done{color:#86efac}
+    .badge{font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid}
+    .sum-fields{padding-right:26px;margin-top:8px;display:flex;flex-direction:column;gap:4px}
+    .sum-field{font-size:12px}
+    .sum-fk{color:#475569}
+    .sum-fv{color:#94a3b8}
+    .sum-fv.computed{color:#7dd3fc;font-weight:700}
+    .equip-sum{background:#131c27;border:1px solid #1e3a5f;border-radius:12px;padding:13px}
+
+    /* Archive */
+    .archive-empty{text-align:center;padding:40px 20px;color:#475569;font-size:14px}
+    .archive-item{background:#131c27;border:1px solid #1e3a5f;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer}
+    .archive-item-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+    .archive-site{font-size:15px;font-weight:700;color:#7dd3fc}
+    .archive-date{font-size:12px;color:#475569}
+    .archive-proj{font-size:12px;color:#94a3b8;margin-bottom:8px}
+    .archive-stats{display:flex;gap:8px}
+    .archive-stat{font-size:11px;padding:2px 8px;border-radius:10px}
+    .archive-stat.done{background:#14532d;color:#86efac}
+    .archive-stat.partial{background:#451a03;color:#fbbf24}
+    .archive-actions{display:flex;gap:8px;margin-top:10px}
+    .arch-btn{flex:1;padding:7px;border-radius:7px;border:1px solid;background:transparent;cursor:pointer;font-size:12px;font-family:inherit;font-weight:600}
+    .arch-btn.view{border-color:#3b82f6;color:#3b82f6}
+    .arch-btn.del{border-color:#ef4444;color:#ef4444}
+
+    /* PDF capture */
+    #pdf-capture{display:none}
+    #pdf-capture.visible{display:block;position:fixed;top:0;left:0;width:794px;z-index:-999;opacity:0;pointer-events:none}
+    #pdf-capture .pdf-page{width:760px;padding:28px 32px;background:white;color:#111;font-family:Arial,Helvetica,sans-serif;direction:rtl;font-size:11px;line-height:1.5}
+    #pdf-capture .pdf-hdr{display:flex;align-items:center;gap:14px;border-bottom:2px solid #1a2332;padding-bottom:10px;margin-bottom:14px}
+    #pdf-capture .pdf-hdr img{width:44px;height:44px;object-fit:contain}
+    #pdf-capture .pdf-hdr-text h1{font-size:17px;color:#1a2332;margin-bottom:2px}
+    #pdf-capture .pdf-hdr-text p{font-size:10px;color:#666}
+    #pdf-capture .pdf-meta{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#f0f4ff;padding:8px 10px;border-radius:4px;margin-bottom:12px;font-size:10px}
+    #pdf-capture .pdf-meta span{color:#555}
+    #pdf-capture .pdf-meta b{color:#111}
+    #pdf-capture .pdf-item{border:1px solid #ddd;border-radius:4px;padding:7px 10px;margin-bottom:5px}
+    #pdf-capture .pdf-item-hdr{display:flex;align-items:center;gap:7px;margin-bottom:3px}
+    #pdf-capture .pdf-num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;flex-shrink:0}
+    #pdf-capture .pdf-num.done{background:#dcfce7;color:#166534}
+    #pdf-capture .pdf-num.partial{background:#fef3c7;color:#92400e}
+    #pdf-capture .pdf-num.pending{background:#f1f5f9;color:#475569}
+    #pdf-capture .pdf-lbl{font-weight:bold;font-size:11px;flex:1}
+    #pdf-capture .pdf-badge{font-size:9px;padding:1px 6px;border-radius:8px}
+    #pdf-capture .pdf-badge.done{background:#dcfce7;color:#166534}
+    #pdf-capture .pdf-badge.partial{background:#fef3c7;color:#92400e}
+    #pdf-capture .pdf-badge.pending{background:#f1f5f9;color:#475569}
+    #pdf-capture .pdf-fields{padding-right:27px;font-size:10px}
+    #pdf-capture .pdf-field{margin-bottom:2px}
+    #pdf-capture .pdf-fk{color:#666}
+    #pdf-capture .pdf-fv{color:#111}
+    #pdf-capture .pdf-footer{text-align:center;font-size:9px;color:#999;margin-top:12px;border-top:1px solid #eee;padding-top:5px}
+
+    @media print{
+      body{background:white!important;color:black!important}
+      .header,.tab-bar,.status-btns,.gps-btn,.action-btn,.save-survey-btn{display:none!important}
+      .content{padding:0!important}
+      @page{margin:15mm;size:A4}
+    }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<div id="pdf-capture"></div>
+
+<script>
+const LOGO_B64 = 'data:image/jpeg;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//aAAwDAQACAAMAAAAh999999999999999999NNNd999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999991999999999999999999999999999999999999951Zz999999999999999999999999999999999999xBDDH1999999999999999999999999999999999pZDDDDH19999999999999999999999999999999pRDDDDDDP199999999999999999999999999999pZDDDDDDDDn1999999999999999999999999999pRDDDDDDDDDDv8AfffffffffffffffffffffffffeWwwwwwwwwwww079fffffffffffffffffffffffcWwwwwwwwwwwwww079ffffffffffffffffffffffdQwwwwwwwwwwwwwwV+ffffffffffffffffffffcS1SQwwwwwwwwwwwwx5Z79fffffffffffffffffcWw0WTQwwwzzxywwwR5Sw079fffffffffffffffaWQww5eaQwwbX78wwxxYwww0/wDX3333333333332lsMMMMPXklXH3333c+2cMMMMNO/X33333333332tsMMMMMMOHXt33332sWOMMMMMMNOfX3333333333mEMMMMMMMMFH333332MMMMMMMMMPvX33333333333m0MMMMMMMMH33333sMMMMMMMMN+X3333333333330m0MMMMMMMPXMc9cMMMMMMMMN+X333333333333321mUMMMMMMMMONOMMMMMMMMN/X33333333333333331k0MMMMMMMMMMMMMMMMMNvX3333333333333333331m0MMMMMMMMMMMMMMMN+X333333333333333333331m0MMMMMMMMMMMMMN9X33333333333333333333331m0MMMMMMMMMMMN/33333333333333333333333331m0MMMMMMMMMO83333333333333333333333333333m0MMMMMMMfu333333333333333333333333333332kkMMMMMN+X3333333333333333333333333333331m0MMMdO3333333333333333333333333333333331m0MNeX333333333333333333333333333333333312l/X333333333333333333333333333333333333003333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333/xAAiEAEAAQMEAwEBAQAAAAAAAAAEAgEDBRAwQFARIGAAFZD/2gAIAQEAAQIC/wBl/PxyEXWib8YhCU/rdwTfikoSnW3cE34hCEp9bdwTfhkISn3t3BN+EQhKdm3cE34JCUp27dwTfgEJSndt3BN75CEp37dwTe8QhKeDbuCb3SEJTw7dwTe4QhKeLbuCb2yEJTx7dwTe0QhKeTbuBb2SEpTy7dwTewQhKebbuCb1164lPPt3BI67I47niDCHV3kQnpkMdzQhhDS2rqEoSkL4T0yGP5YQwhpkchC4JvTJQlOgXQn+r+yGP5IQwhpkcjpbuCb0iEJT6BdCf7xkMfsUpax0cP8Ax5Ya7i5Q2AhhDTI5H0t3BN6JKEp9guhPTIY72MM4/HjTxdMvHewQwhpkcj7W7gm9AlKU7AXQn+8ZDH+giW7fj2rTIg9BBhDTI5HYt3BN5yUJTtBdCf7xkMdpZt2LOzKLTaCDCGmQyO1buCbzEISncC6E9Mjj/wBibFNvJ2PwRQhpkcjuW7gm8pCEp3guhPTIY4VvbuUNj4Q0yOR3oTC3kIQlPAC6E9PG540yOR4Fu4JvHSdB+CF0J8DIZHgwgIfISZFjghdCe9kcjwYQEKlOSkyD8ELoT3MjkeDCAhUpy0lQfghdCe1kMjwYQEKlOakqD8ELoT2MjkeDCAhUpz0lv2OCRx1+t2+zJ8GEBCpToVFQfg0laykM1/YlmruXnc4MICFSnRqMix08ICFSnSqNfP0sICFTqEmQfo4QEKlOpSZB+hhAQqU6tRr5+fCAhUp1qSoPzYQEKnYJKg/LhAQqU7FJkH5MICFSnZpMg/HhAQqU7VJkH4sICF47dJkH4cICFSncpMg/BhAQqU7tJkH34QEKlO9SVB92EBCpTv0lQfbhAQqU+BSVB9mEBCpT4NJkH94QEKlPhUmQf1hAQqU+HUZB9YQEKlPiUmQf9CAhUp8Wk10ghUp8bWHj/Zf/2gAMAwEAAgADAAAAEAgggggggggggggggggsssogggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggiwgggggggggggggggggggggggggggggggggggghi/wCEIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII+PO9coIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIJfsMMMvcIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIJfcMMMMMt0oIIIIIIIIIIIIIIIIIIIIIIIIIIIIIf8AjDDDDDDL1KCCCCCCCCCCCCCCCCCCCCCCCCCCCXHjDDDDDDDjrtCCCCCCCCCCCCCCCCCCCCCCCCCCDJDDDDDDDDDDz3tKCCCCCCCCCCCCCCCCCCCCCCCPdjDDDDDDDDDDDTz9KCCCCCCCCCCCCCCCCCCCCCCxvDDDDDDDDDDDDDV5uCCCCCCCCCCCCCCCCCCCCLzz9rDDDDDDDDDDDXlH19KCCCCCCCCCCCCCCCCCLNtxO5LDDDJRhNLDNdnNf7XCCCCCCCCCCCCCCCCTDDXvlO1DDljxxpFPxHxfDDbnKCCCCCCCCCCCCCXpLDDDv7bhfHCCCCZ3PlfDDDD/AOSggggggggggglbQwwwwwxzQvQgggghc5bwwwwwwz9Sggggggggggh1wwwwwww+7Zggggggjf4wwwwww/yagggggggggggg0wwwwww87wSggggmW4wwwwww/wDXoIIIIIIIIIII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';
+
+const CHECKLIST_ITEMS = [
+
+  { id:"coords", label:"דקירת נצ'", fields:[
+    {key:"coords_list", label:"קואורדינטות", type:"textarea_gps"},
+    {key:"notes", label:"הערות", type:"textarea"},
+  ]},
+  { id:"distances", label:"מדידת מרחקים", fields:[
+    {key:"ac_lan_dist", label:"מרחק AC+LAN (מטר)", type:"number"},
+    {key:"lan_internet_dist", label:"מרחק LAN אינטרנט מארון תקשורת (מטר)", type:"number"},
+    {key:"ac_panel_dist", label:"מרחק AC ארון חשמל לנק' חשמל (מטר)", type:"number"},
+    {key:"cobra_total", label:'אורך מטר קוברה סה"כ', type:"computed"},
+    {key:"notes", label:"הערות", type:"textarea"},
+  ]},
+  { id:"cellular", label:"בדיקת תקשורת סלולר", fields:[
+    {key:"sim1_carrier", label:"ספק", type:"select", options:["סלקום","פלאפון","פרטנר"]},
+    {key:"sim2_carrier", label:"ספק", type:"select", options:["סלקום","פלאפון","פרטנר"]},
+    {key:"sim3_carrier", label:"ספק", type:"select", options:["סלקום","פלאפון","פרטנר"]},
+    {key:"notes", label:"הערות", type:"textarea"},
+  ]},
+  { id:"construction", label:"הקמה", fields:[
+    {key:"hanging", label:"תלייה", type:"select", options:["קיימת אפשרות","לא קיימת אפשרות"]},
+    {key:"poles", label:"עמודים", type:"select", options:["צריך להכין","לא צריך להכין"]},
+    {key:"power_points", label:"נקודות חשמל", type:"select", options:["קיים","לא קיים"]},
+    {key:"comm_points", label:"נקודות תקשורת", type:"select", options:["קיים","לא קיים"]},
+    {key:"crane", label:"מנוף", type:"select", options:["כן","לא"]},
+    {key:"notes", label:"הערות הקמה", type:"textarea"},
+  ]},
+  { id:"ops_room", label:'חמ"ל', fields:[
+    {key:"chair_table1", label:"עמדה 1 – כיסא ושולחן?", type:"select", options:["כיסא","שולחן","שניהם","אין צורך"]},
+    {key:"position1", label:"עמדה 1 – פירוט", type:"textarea"},
+    {key:"chair_table2", label:"עמדה 2 – כיסא ושולחן?", type:"select", options:["כיסא","שולחן","שניהם","אין צורך"]},
+    {key:"position2", label:"עמדה 2 – פירוט", type:"textarea"},
+    {key:"notes", label:'הערות חמ"ל', type:"textarea"},
+  ]},
+
+  { id:"expectations", label:"סיכום", fields:[
+    {key:"summary", label:"סיכום תיאום ציפיות", type:"textarea"},
+  ]},
+];
+
+const EQUIPMENT = [
+  "מודם טלטוניקה","מחשב נייד","רחפן",
+  "רולטקה למדידת מרחקים",
+  "כרטיסי SIM (ספקים שונים)","סוללת EcoFlow","PLANET",
+];
+
+const STATUS_COLORS = {done:"#22c55e", partial:"#f59e0b", pending:"#64748b"};
+const STATUS_LABELS = {done:"הושלם", partial:"חלקי", pending:"ממתין"};
+const STATUS_ICONS  = {done:"✅", partial:"🔶", pending:"⬜"};
+
+const today = new Date().toISOString().split('T')[0];
+
+let state = {
+  view: 'form',
+  meta: {site:'', date:today, surveyor:'', project:''},
+  data: {},
+  status: {},
+  equipment: {},
+  open: null,
+};
+
+/* ── Storage helpers ── */
+function loadArchive() {
+  try { return JSON.parse(localStorage.getItem('kela_surveys')||'[]'); } catch(e){ return []; }
+}
+function saveToArchive() {
+  var archive = loadArchive();
+  var entry = {
+    id: Date.now(),
+    savedAt: new Date().toISOString(),
+    meta: JSON.parse(JSON.stringify(state.meta)),
+    data: JSON.parse(JSON.stringify(state.data)),
+    status: JSON.parse(JSON.stringify(state.status)),
+    equipment: JSON.parse(JSON.stringify(state.equipment)),
+  };
+  archive.unshift(entry);
+  localStorage.setItem('kela_surveys', JSON.stringify(archive));
+  return entry;
+}
+function deleteFromArchive(id) {
+  var archive = loadArchive().filter(function(e){ return e.id !== id; });
+  localStorage.setItem('kela_surveys', JSON.stringify(archive));
+}
+function loadSurvey(entry) {
+  state.meta = JSON.parse(JSON.stringify(entry.meta));
+  state.data = JSON.parse(JSON.stringify(entry.data));
+  state.status = JSON.parse(JSON.stringify(entry.status));
+  state.equipment = JSON.parse(JSON.stringify(entry.equipment||{}));
+  state.open = null;
+  state.view = 'form';
+}
+
+/* ── Helpers ── */
+function getCobraSum(d) {
+  return (parseFloat(d.ac_lan_dist)||0)+(parseFloat(d.lan_internet_dist)||0)+(parseFloat(d.ac_panel_dist)||0);
+}
+function completedCount() {
+  return Object.values(state.status).filter(function(s){return s==='done';}).length;
+}
+function updateMeta(k,v){ state.meta[k]=v; }
+function updateData(id,key,val){
+  if(!state.data[id]) state.data[id]={};
+  state.data[id][key]=val;
+  if(id==='distances') render();
+}
+function toggleItem(id){ state.open = state.open===id?null:id; render(); }
+function setStatus(id,s){ state.status[id]=s; render(); }
+function toggleEquip(el){
+  var key = el.getAttribute('data-equip');
+  state.equipment[key]=!state.equipment[key];
+  render();
+}
+function addGps(){
+  if(!navigator.geolocation){alert('GPS לא זמין');return;}
+  navigator.geolocation.getCurrentPosition(function(pos){
+    var lat=pos.coords.latitude.toFixed(6), lng=pos.coords.longitude.toFixed(6), acc=Math.round(pos.coords.accuracy);
+    var line=lat+', '+lng+'  (דיוק: '+acc+'מ\')';
+    if(!state.data['coords']) state.data['coords']={};
+    var ex=state.data['coords']['coords_list']||'';
+    state.data['coords']['coords_list']=ex?ex+'\n'+line:line;
+    render();
+  },function(err){
+    if(err.code===1) alert('גישה ל-GPS נדחתה. אפשר מיקום בהגדרות הדפדפן.');
+    else alert('שגיאת GPS: '+err.message);
+  },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+}
+
+/* ── PDF ── */
+function generatePDF(){
+  var sLabels={done:'הושלם',partial:'חלקי',pending:'ממתין'};
+  var el=document.getElementById('pdf-capture');
+  var html='<div class="pdf-page">';
+  html+='<div class="pdf-hdr"><img src="'+LOGO_B64+'" alt="KELA"><div class="pdf-hdr-text"><h1>KELA – דוח סיור שטח</h1><p>Field Survey Report</p></div></div>';
+  html+='<div class="pdf-meta">';
+  html+='<div><span>אתר: </span><b>'+(state.meta.site||'—')+'</b></div>';
+  html+='<div><span>תאריך: </span><b>'+(state.meta.date||'—')+'</b></div>';
+  html+='<div><span>איש קשר: </span><b>'+(state.meta.surveyor||'—')+'</b></div>';
+  html+='<div><span>פרויקט: </span><b>'+(state.meta.project||'—')+'</b></div>';
+  html+='</div>';
+  CHECKLIST_ITEMS.forEach(function(item,idx){
+    var s=state.status[item.id]||'pending';
+    var d=state.data[item.id]||{};
+    var numTxt=s==='done'?'✓':String(idx+1);
+    html+='<div class="pdf-item"><div class="pdf-item-hdr">';
+    html+='<div class="pdf-num '+s+'">'+numTxt+'</div>';
+    html+='<div class="pdf-lbl">'+item.label+'</div>';
+    html+='<div class="pdf-badge '+s+'">'+sLabels[s]+'</div>';
+    html+='</div>';
+    var hasData=item.fields.some(function(f){return f.type==='computed'?getCobraSum(d)>0:!!d[f.key];});
+    if(hasData){
+      html+='<div class="pdf-fields">';
+      item.fields.forEach(function(f){
+        var val='';
+        if(f.type==='computed'){var sum=getCobraSum(d);if(sum>0)val=sum+' מטר';}
+        else val=d[f.key]||'';
+        if(val) html+='<div class="pdf-field"><span class="pdf-fk">'+f.label+': </span><span class="pdf-fv">'+val+'</span></div>';
+      });
+      html+='</div>';
+    }
+    html+='</div>';
+  });
+  html+='<div class="pdf-footer">KELA Systems | Field Survey | '+new Date().toLocaleDateString('he-IL')+'</div>';
+  html+='</div>';
+  el.innerHTML=html;
+  el.classList.add('visible');
+  var jsPDF=window.jspdf.jsPDF;
+  html2canvas(el.querySelector('.pdf-page'),{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(function(canvas){
+    el.classList.remove('visible');
+    var imgData=canvas.toDataURL('image/jpeg',0.92);
+    var pdf=new jsPDF({orientation:'p',unit:'mm',format:'a4'});
+    var pw=210,ph=297,imgW=pw,imgH=canvas.height*pw/canvas.width,y=0;
+    while(y<imgH){if(y>0)pdf.addPage();pdf.addImage(imgData,'JPEG',0,-y,imgW,imgH);y+=ph;}
+    var fname='KELA-survey-'+(state.meta.site||'report')+'-'+(state.meta.date||'').replace(/-/g,'')+'.pdf';
+    pdf.save(fname);
+  });
+}
+
+/* ── WA report ── */
+function buildWAReport(){
+  var L='━━━━━━━━━━━━━━━━━━━━━━', l='──────────────────────';
+  var icons={done:'✅',partial:'🔶',pending:'⬜'};
+  var msg='📋 *דוח סיור שטח | KELA*\n'+L+'\n';
+  msg+='🏗 *אתר:* '+(state.meta.site||'—')+'\n';
+  msg+='📅 *תאריך:* '+(state.meta.date||'—')+'\n';
+  msg+='👤 *איש קשר:* '+(state.meta.surveyor||'—')+'\n';
+  msg+='📁 *פרויקט:* '+(state.meta.project||'—')+'\n'+L+'\n\n';
+  CHECKLIST_ITEMS.forEach(function(item,idx){
+    var s=state.status[item.id]||'pending';
+    var d=state.data[item.id]||{};
+    msg+=icons[s]+' *'+(idx+1)+'. '+item.label+'*\n';
+    item.fields.forEach(function(f){
+      if(f.type==='computed'){var sum=getCobraSum(d);if(sum>0)msg+='   • '+f.label+': *'+sum+' מטר*\n';}
+      else if(d[f.key]) msg+='   • '+f.label+': '+d[f.key]+'\n';
+    });
+    msg+=l+'\n';
+  });
+  var done=completedCount();
+  msg+='\n'+L+'\n📊 *סטטוס:* '+done+'/'+CHECKLIST_ITEMS.length+' הושלמו';
+  return msg;
+}
+function shareWA(){ window.open('https://wa.me/?text='+encodeURIComponent(buildWAReport()),'_blank'); }
+
+/* ── Render ── */
+function render(){
+  var done=completedCount(), total=CHECKLIST_ITEMS.length, pct=Math.round(done/total*100);
+  var html='<div class="header"><div class="header-logo">';
+  html+='<img class="logo-img" src="'+LOGO_B64+'" alt="KELA">';
+  html+='<div><div class="header-title">KELA</div><div class="header-subtitle">Field Survey Form</div></div></div>';
+  html+='<div class="tab-bar">';
+  ['form','summary','archive'].forEach(function(v){
+    var labels={form:'טופס',summary:'סיכום',archive:'מאגר'};
+    html+='<button class="tab-btn'+(state.view===v?' active':'')+'" onclick="switchView(\''+v+'\')">'+labels[v]+'</button>';
+  });
+  html+='</div></div><div class="content">';
+
+  if(state.view==='form'){
+    /* Meta */
+    html+='<div class="card card-pad"><div class="section-label">פרטי הסיור</div><div class="grid2">';
+    [{key:'site',label:'שם האתר'},{key:'date',label:'תאריך',type:'date'},{key:'surveyor',label:'איש קשר'},{key:'project',label:'פרויקט'}].forEach(function(f){
+      html+='<div><label>'+f.label+'</label><input type="'+(f.type||'text')+'" value="'+state.meta[f.key]+'" onchange="updateMeta(\''+f.key+'\',this.value)"></div>';
+    });
+    html+='</div></div>';
+
+    /* Items */
+    html+='<div class="section-label" style="margin-bottom:10px">צ\'ק ליסט</div>';
+    CHECKLIST_ITEMS.forEach(function(item,idx){
+      var s=state.status[item.id]||'pending', isOpen=state.open===item.id, d=state.data[item.id]||{};
+      html+='<div class="item'+(isOpen?' open':'')+'"><div class="item-hdr" onclick="toggleItem(\''+item.id+'\')">';
+      html+='<div class="item-num '+s+'">'+(s==='done'?'✓':s==='partial'?'~':idx+1)+'</div>';
+      html+='<span class="item-lbl'+(s==='done'?' done':'')+'">'+item.label+'</span>';
+      html+='<span class="arrow'+(isOpen?' open':'')+'">◀</span></div>';
+      if(isOpen){
+        html+='<div class="item-body open"><div class="fields">';
+        item.fields.forEach(function(f){
+          html+='<div><label>'+f.label+'</label>';
+          if(f.type==='textarea_gps'){
+            html+='<button class="gps-btn" onclick="addGps()">📍 קלוט מיקום GPS</button>';
+            html+='<textarea onchange="updateData(\''+item.id+'\',\''+f.key+'\',this.value)" placeholder="קואורדינטות יופיעו כאן">'+((d[f.key])||'')+'</textarea>';
+          } else if(f.type==='computed'){
+            var sum=getCobraSum(d);
+            html+='<div class="computed-box"><span>'+(sum>0?sum+' מטר':'— הזן מרחקים למעלה')+'</span>'+(sum>0?'<span class="computed-hint">חישוב אוטומטי</span>':'')+'</div>';
+          } else if(f.type==='textarea'){
+            html+='<textarea onchange="updateData(\''+item.id+'\',\''+f.key+'\',this.value)">'+((d[f.key])||'')+'</textarea>';
+          } else if(f.type==='select'){
+            html+='<select onchange="updateData(\''+item.id+'\',\''+f.key+'\',this.value)"><option value="">— בחר —</option>';
+            f.options.forEach(function(o){ html+='<option value="'+o+'"'+(d[f.key]===o?' selected':'')+'>'+o+'</option>'; });
+            html+='</select>';
+          } else {
+            html+='<input type="'+f.type+'" value="'+(d[f.key]||'')+'" onchange="updateData(\''+item.id+'\',\''+f.key+'\',this.value)">';
+          }
+          html+='</div>';
+        });
+        html+='<div class="status-btns">';
+        [{s:'pending',l:'ממתין'},{s:'partial',l:'חלקי'},{s:'done',l:'הושלם'}].forEach(function(b){
+          html+='<button class="sbtn'+(state.status[item.id]===b.s?' active':'')+'" data-s="'+b.s+'" onclick="setStatus(\''+item.id+'\',\''+b.s+'\')">'+b.l+'</button>';
+        });
+        html+='</div></div></div>';
+      }
+      html+='</div>';
+    });
+    /* Equipment */
+    html+='<div class="section-label" style="margin:18px 0 10px">ציוד</div><div class="equip-list">';
+    EQUIPMENT.forEach(function(e,i){
+      var chk=!!state.equipment[e];
+      html+='<div class="equip-item" onclick="toggleEquip(this)" data-equip="'+e.replace(/"/g,'&quot;')+'">';
+      html+='<div class="equip-chk'+(chk?' checked':'')+'">'+( chk?'✓':'')+'</div>';
+      html+='<span class="equip-lbl'+(chk?' checked':'')+'">'+e+'</span></div>';
+    });
+    html+='</div>';
+    html+='<button class="save-survey-btn" onclick="saveSurvey()">💾 שמור סיור למאגר</button>';
+
+  } else if(state.view==='summary'){
+    html+='<div class="card card-pad"><div class="sum-header">';
+    html+='<div class="sum-title">סיכום סיור שטח</div>';
+    html+='<button class="action-btn pdf" onclick="generatePDF()"><span>📄</span> שליחת PDF</button>';
+    html+='</div>';
+    html+='<div class="meta-grid">';
+    [['אתר',state.meta.site],['תאריך',state.meta.date],['איש קשר',state.meta.surveyor],['פרויקט',state.meta.project]].forEach(function(m){
+      html+='<div class="meta-item"><span class="meta-k">'+m[0]+': </span><span class="meta-v">'+(m[1]||'—')+'</span></div>';
+    });
+    html+='</div><div class="status-stat"><span style="color:#64748b">סטטוס: </span><span style="color:#7dd3fc;font-weight:700">'+done+'/'+total+' הושלמו</span></div></div>';
+    CHECKLIST_ITEMS.forEach(function(item,idx){
+      var s=state.status[item.id]||'pending', d=state.data[item.id]||{};
+      var col=STATUS_COLORS[s];
+      var hasData=item.fields.some(function(f){return f.type==='computed'?getCobraSum(d)>0:!!d[f.key];});
+      html+='<div class="sum-item"><div class="sum-item-hdr">';
+      html+='<span style="font-size:14px">'+STATUS_ICONS[s]+'</span>';
+      html+='<span class="sum-item-title'+(s==='done'?' done':'')+'">'+( idx+1)+'. '+item.label+'</span>';
+        html+='</div>';
+      if(hasData){
+        html+='<div class="sum-fields">';
+        item.fields.forEach(function(f){
+          var val='';
+          if(f.type==='computed'){var sum=getCobraSum(d);if(sum>0)val=sum+' מטר';}
+          else val=d[f.key]||'';
+          if(val) html+='<div class="sum-field"><span class="sum-fk">'+f.label+': </span><span class="sum-fv'+(f.type==='computed'?' computed':'')+'">'+val+'</span></div>';
+        });
+        html+='</div>';
+      }
+      html+='</div>';
+    });
+
+  } else {
+    /* Archive */
+    var archive=loadArchive();
+    html+='<div class="section-label" style="margin-bottom:14px">מאגר סיורים</div>';
+    if(archive.length===0){
+      html+='<div class="archive-empty">📂<br><br>אין סיורים שמורים עדיין<br><span style="font-size:12px">לחץ "שמור סיור למאגר" בסיום סיור</span></div>';
+    } else {
+      archive.forEach(function(entry){
+        var doneC=Object.values(entry.status||{}).filter(function(s){return s==='done';}).length;
+        var partC=Object.values(entry.status||{}).filter(function(s){return s==='partial';}).length;
+        html+='<div class="archive-item">';
+        html+='<div class="archive-item-hdr"><span class="archive-site">'+(entry.meta.site||'ללא שם')+'</span><span class="archive-date">'+( entry.meta.date||'—')+'</span></div>';
+        html+='<div class="archive-proj">📁 '+(entry.meta.project||'—')+' &nbsp;|&nbsp; 👤 '+(entry.meta.surveyor||'—')+'</div>';
+        html+='<div class="archive-stats">';
+        if(doneC>0) html+='<span class="archive-stat done">✓ '+doneC+' הושלמו</span>';
+        if(partC>0) html+='<span class="archive-stat partial">~ '+partC+' חלקי</span>';
+        html+='</div>';
+        html+='<div class="archive-actions">';
+        html+='<button class="arch-btn view" onclick="loadArchiveSurvey('+entry.id+')">📂 טען סיור</button>';
+        html+='<button class="arch-btn del" onclick="deleteSurvey('+entry.id+')">🗑 מחק</button>';
+        html+='</div></div>';
+      });
+    }
+  }
+
+  html+='</div>';
+  document.getElementById('app').innerHTML=html;
+}
+
+function switchView(v){ state.view=v; render(); }
+function saveSurvey(){
+  saveToArchive();
+  alert('הסיור נשמר במאגר ✓');
+}
+function loadArchiveSurvey(id){
+  var archive=loadArchive();
+  var entry=archive.find(function(e){return e.id===id;});
+  if(entry){ loadSurvey(entry); render(); }
+}
+function deleteSurvey(id){
+  if(confirm('למחוק סיור זה?')){ deleteFromArchive(id); render(); }
+}
+
+render();
+</script>
+</body>
+</html>
